@@ -80,3 +80,4 @@ Telegram/SourceFiles/_other/packer_private.h
 .codegraph/
 .dsh-file-claim/
 dsh-ha-orchestrator.*
+.audit/
