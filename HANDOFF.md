@@ -7,7 +7,7 @@
 
 ## 1. 一句話現狀
 
-需求 1~6、8 + **需求 7 一期（Edit & Resend，插入語義）已全部落代碼並提交**（2 個 commit，**零編譯**）；需求 7 二期（任意 RPC 重放）未做，等 CI 綠後落地。驗證通道已切到 GitHub Actions 發布流水線（Win10 amd64）。
+需求 1~6、8 + **需求 7 一期（Edit & Resend，插入語義）已全部落代碼並提交**（3 個 commit，**零編譯**）；需求 7 二期（任意 RPC 重放）未做，等 CI 綠後落地。驗證通道已切到 GitHub Actions 發布流水線（Win10 amd64）。
 
 ---
 
@@ -16,7 +16,7 @@
 | 項 | 值 |
 |---|---|
 | 倉庫 | `/root/workspace/AyuGramDesktop` = AyuGramDesktop（tdesktop **v7.0.9** fork，分支 `dev`，HEAD `db3b9891cb`，TL layer **228**） |
-| 改動狀態 | **已提交 2 個 commit**：`6ac8e67915`（源碼+文檔，47 files）、`98c7dd830f`（CI 提取 errors.txt）；基線 `db3b9891cb`；**尚未 push、尚未打 tag、零編譯結果** |
+| 改動狀態 | **已提交 3 個 commit**：`6ac8e67915`（源碼+文檔，47 files）、`98c7dd830f`（CI 提取 errors.txt）、`8c530f0d50`（HANDOFF/CONTEXT 同步）；基線 `db3b9891cb`；**尚未 push、尚未打 tag、零編譯結果** |
 | 子模塊 | **37/37 全部未初始化**（含 `cmake`、`Telegram/lib_base`、`lib_ui`、`lib_tl`、`lib_storage`、`codegen`）→ 這些頭文件不在盤上 |
 | 構建能力 | **零**：無 cmake/ninja/clang/ccache/docker；無 `out/`；`../Libraries`、`../win64/Libraries` 全缺 |
 | 硬件 | 5 核 / 9.3G 內存（可用約 4G）/ 磁盤波動大（曾 31G，也曾 2.8G/98% 滿） |
@@ -41,7 +41,7 @@
 
 ## 4. 已落地代碼改動（21 文件，已提交）
 
-> Commit：`6ac8e67915`（源碼+文檔，47 files / +8555−16）＋ `98c7dd830f`（CI errors.txt）；基線 `db3b9891cb`。
+> Commit：`6ac8e67915`（源碼+文檔，47 files / +8555−16）＋ `98c7dd830f`（CI errors.txt）＋ `8c530f0d50`（交接同步）；基線 `db3b9891cb`。
 
 ### P0 構建修復（HEAD 原本編不過）
 | 文件 | 改動 |
@@ -186,14 +186,14 @@ ADR-0003 方案完備（一期：載入原文到輸入框可編輯後重發；�
 - **需求 7 一期**（Edit & Resend，插入語義）：`context_menu.{h,cpp}` 新增 action，一欄/兩欄兩個調用點分別接 `ListWidget::insertTextAtCursor` / `HistoryWidget::insertTextAtCursor`（見 §4 P3）。
 - **GitHub Actions 發布流水線**：`.github/workflows/release-win-amd64.yml`（觸發 tag `v*` / `release: published`；僅 Win10 amd64；Release 構建；單 exe 便攜 zip + `sha256sums.txt`；自動建 Release；`errors.txt` 聚合編譯錯誤）。使用說明與 15 項回歸清單：`docs/build-package/github-actions.md`。
 - **需求 7 二期**：未寫；落地前置與順序寫在 `docs/adr/0003-editable-message-replay.md` 附錄 A。
-- **提交**：`6ac8e67915`（需求 1~8 + 需求 7 一期 + 文檔，47 files / +8555−16）、`98c7dd830f`（CI errors.txt 提取）。工作區乾淨（僅剩 `.codegraph/`、`.dsh-file-claim/`、dsh 運行日誌等工具產物）。
+- **提交**：`6ac8e67915`（需求 1~8 + 需求 7 一期 + 文檔，47 files / +8555−16）、`98c7dd830f`（CI errors.txt 提取）、`8c530f0d50`（HANDOFF/CONTEXT 收盤同步）。工作區乾淨（僅剩 `.codegraph/`、`.dsh-file-claim/`、dsh 運行日誌等工具產物）。
 - **零編譯狀態未變**：所有結論仍需首輪 CI 驗證。
 
 ---
 
 ## 12. 新會話開場速覽（2025-10-22 收盤）
 
-1. 分支 `dev`，基線 `db3b9891cb`，**已提交 2 commit**（見 §11），**尚未 push / 尚未打 tag / 尚無任何編譯結果**。
+1. 分支 `dev`，基線 `db3b9891cb`，**已提交 3 commit**（見 §11），**尚未 push / 尚未打 tag / 尚無任何編譯結果**。
 2. 編譯驗證 = GitHub Actions 發布流水線（`.github/workflows/release-win-amd64.yml`）。下一會話第一件事：問用戶「推了嗎？tag 打了嗎？`errors.txt` / `prepare.log` 貼一下」。
 3. 拿到 `errors.txt` → 按文件一次修完 → 打新 tag（如 `v7.0.9-ayu.2`）→ 第二輪（緩存命中 30~50 分鐘）。
 4. CI 綠後：寫需求 7 二期（ADR-0003 附錄 A），並過 `docs/build-package/github-actions.md` §7 的 15 項人工回歸。

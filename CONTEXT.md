@@ -168,5 +168,5 @@
 
 ## 13. 交接（2025-10-22）
 - 換會話請先讀 **`HANDOFF.md`**（§1 現狀、§2 環境事實、§3 需求1~8真實狀態、§4 改動清單、§5 複審/已修BUG、§6 缺口、§7 需求7阻塞分析、§8 檔案地圖、§9 下一步、§10 工作紀律）。
-- 已提交 2 commit（`6ac8e67915` 源碼+文檔、`98c7dd830f` CI errors.txt），基線 `db3b9891cb`；**尚未 push / 尚未打 tag**；權威變更集 = `git log --oneline db3b9891cb..HEAD`。
+- 已提交 3 commit（`6ac8e67915` 源碼+文檔、`98c7dd830f` CI errors.txt、`8c530f0d50` 交接同步），基線 `db3b9891cb`；**尚未 push / 尚未打 tag**；權威變更集 = `git log --oneline db3b9891cb..HEAD`。
 - 2025-10-22 收盤：GitHub Actions 發布流水線（`.github/workflows/release-win-amd64.yml`）就位；新會話請先讀 `HANDOFF.md` §11/§12 與 `docs/build-package/github-actions.md`。
