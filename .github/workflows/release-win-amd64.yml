@@ -152,7 +152,8 @@ jobs:
           Platform: x64
         run: |
           Set-Location Telegram
-          cmd /c "configure.bat x64 -D TDESKTOP_API_ID=$env:TDESKTOP_API_ID -D TDESKTOP_API_HASH=$env:TDESKTOP_API_HASH" 2>&1 |
+          # 便攜版自行發布，關閉自動更新：避免從上游更新源拉包（唯一的 RCE 面）
+          cmd /c "configure.bat x64 -D TDESKTOP_API_ID=$env:TDESKTOP_API_ID -D TDESKTOP_API_HASH=$env:TDESKTOP_API_HASH -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON" 2>&1 |
             Tee-Object -FilePath "$env:GITHUB_WORKSPACE/configure.log"
           exit $LASTEXITCODE
 

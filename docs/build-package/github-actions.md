@@ -9,10 +9,12 @@
 
 **方式 A：打 tag（自動建 Release 並上傳）**
 ```bash
-git tag v7.0.9
-git push origin v7.0.9
+git tag v7.2.9-ayu.1
+git push origin v7.2.9-ayu.1
 ```
 → Actions 自動：構建依賴 → Release 構建 → 打包 zip → 算 sha256 → **自動建立並發布 Release**。
+
+> ⚠️ 不要用 `v7.0.9` / `v7.2.9` 這類純上游 tag：它們已存在於 origin（是合併進 dev 的上游 tag），`git tag` 會直接報 `already exists`。本 fork 的發版一律用 `-ayu.<n>` 後綴。
 
 **方式 B：手工建立 Release**
 GitHub → Releases → Draft a new release → 填 tag（新 tag 或已有 tag）→ Publish release。
@@ -24,9 +26,9 @@ GitHub → Releases → Draft a new release → 填 tag（新 tag 或已有 tag�
 
 | tag 形式 | 內嵌版本（`Telegram/build/version`） | 資產名 |
 |---|---|---|
-| `v7.0.9` | `7.0.9`（由 `set_version.py` 寫入） | `AyuGram_7.0.9_win64_portable.zip` |
-| `v7.0.9-ayu.1` | 提取前綴 `7.0.9` | `AyuGram_7.0.9-ayu.1_win64_portable.zip` |
-| 非數字 tag | 保持倉庫默認 `7.0.9`，不報錯 | 用 tag 原文命名 |
+| `v7.2.9-ayu.1` | 提取前綴 `7.2.9`（由 `set_version.py` 寫入） | `AyuGram_7.2.9-ayu.1_win64_portable.zip` |
+| `v7.2.9` | `7.2.9` | `AyuGram_7.2.9_win64_portable.zip`（**上游 tag 已存在，別用**） |
+| 非數字 tag | 保持倉庫默認 `7.2.9`，不報錯 | 用 tag 原文命名 |
 
 ## 3. 打包內容（為什麼「解壓即用」）
 
@@ -38,6 +40,8 @@ zip 內：
 - `LICENSE`、`LEGAL`
 
 `sha256sums.txt` 格式：`<sha256>  <文件名>`（可用 `sha256sum -c` 或在 Windows 用 `certutil -hashfile` 校驗）。
+
+**自動更新已焊死**：configure 帶 `-D DESKTOP_APP_DISABLE_AUTOUPDATE=ON`（`telegram_options.cmake:39-40` → `TDESKTOP_DISABLE_AUTOUPDATE`），產出的 exe **不會**從伺服器下發的 `autoupdate_url_prefix` 拉更新包。這是自動更新鏈（唯一的 RCE 面）在構建層面的硬開關，升級靠重新發版，不靠自更新。副作用：設置裡「檢查更新」相關 UI 一併隱藏。
 
 ## 4. 首次/後續耗時
 
