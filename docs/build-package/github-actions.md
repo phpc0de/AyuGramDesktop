@@ -72,6 +72,7 @@ zip 內：
 2. 倉內文檔寫 VS2026 + v14.44 工具集；`windows-2022` 是 VS2022（v143）。對 Win10 amd64 足夠。
 3. Qt 版本：倉庫 `qt_version.py` 對 Win x64 默認 Qt **5.15.19**（Win arm/qt6 才走 6.11.2）。若實際發佈用 Qt6，把 yaml 的 `QT` 改成對應版本並給 prepare 傳 `qt6`。
 4. 緩存上限 10 GB/倉庫；`Libraries/win64` + `ThirdParty` 若超限，緩存會被跳過（不影響本次構建，只影響下次提速）。
+5. **緩存路徑必須是絕對路徑、不能含 `..`**：`actions/cache` 會拒絕 `${{ github.workspace }}/../X`（報 `Relative pathing '.' and '..' is not allowed`），而且只是 warning，容易誤判成「prepare 失敗」。workflow 用 `${{ runner.workspace }}/X`（= `D:\a\<repo>`，正是 `prepare.py` 的 `rootDir`）。
 
 ## 7. 發版前回歸清單（人工，編譯器抓不到）
 

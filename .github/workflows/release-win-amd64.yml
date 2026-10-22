@@ -49,14 +49,14 @@ jobs:
         id: cache-thirdparty
         uses: actions/cache/restore@v4
         with:
-          path: ${{ github.workspace }}/../ThirdParty
+          path: ${{ runner.workspace }}/ThirdParty
           key: thirdparty-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py') }}
 
       - name: Restore Libraries cache
         id: cache-libs
         uses: actions/cache/restore@v4
         with:
-          path: ${{ github.workspace }}/../Libraries/win64
+          path: ${{ runner.workspace }}/Libraries/win64
           key: libs-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py', 'Telegram/CMakeLists.txt') }}
 
       - name: Prepare libraries
@@ -75,7 +75,7 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
-          path: ${{ github.workspace }}/../ThirdParty
+          path: ${{ runner.workspace }}/ThirdParty
           key: ${{ steps.cache-thirdparty.outputs.cache-primary-key }}
 
       - name: Save Libraries cache
@@ -83,8 +83,23 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
-          path: ${{ github.workspace }}/../Libraries/win64
+          path: ${{ runner.workspace }}/Libraries/win64
           key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Summarize prepare result
+        if: always()
+        shell: pwsh
+        run: |
+          $log = "$env:GITHUB_WORKSPACE/prepare.log"
+          if (Test-Path $log) {
+            "### prepare 日志摘要" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            Select-String -Path $log -Pattern 'FAILED' -SimpleMatch |
+              ForEach-Object { "- ``$($_.Line.Trim())``" } |
+              Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            '```' | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            Get-Content $log -Tail 120 | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            '```' | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+          }
 
       - name: Upload prepare log
         if: always()
@@ -123,20 +138,27 @@ jobs:
       - name: Restore ThirdParty cache
         uses: actions/cache/restore@v4
         with:
-          path: ${{ github.workspace }}/../ThirdParty
+          path: ${{ runner.workspace }}/ThirdParty
           key: thirdparty-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py') }}
 
       - name: Restore Libraries cache
         uses: actions/cache/restore@v4
         with:
-          path: ${{ github.workspace }}/../Libraries/win64
+          path: ${{ runner.workspace }}/Libraries/win64
           key: libs-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py', 'Telegram/CMakeLists.txt') }}
 
       - name: Verify libraries
         shell: pwsh
         run: |
-          if (!(Test-Path "${{ github.workspace }}/../Libraries/win64")) {
-            throw "Libraries 缓存缺失：prepare-libs job 失败。请先看 prepare-log artifact。"
+          if (!(Test-Path "${{ runner.workspace }}/Libraries/win64")) {
+            "### prepare 没有产出 Libraries/win64" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            '```' | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            Get-ChildItem "${{ runner.workspace }}" -Force |
+              Select-Object Name, Length |
+              Out-String |
+              Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            '```' | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            throw "Libraries 缓存缺失：prepare-libs job 失败。摘要见本页 Summary，完整日志见 prepare-log artifact。"
           }
 
       - name: Compute version
