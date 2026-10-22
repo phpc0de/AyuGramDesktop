@@ -7,7 +7,7 @@
 
 ## 1. 一句話現狀
 
-需求 1~6、8 已落地並經四路對抗式複審修完 9 個真 BUG（**未提交、未編譯**）；**需求 7 一期（Edit & Resend，插入語義）已落代碼**（2025-10-22，未編譯）；**二期（任意 RPC 重放）未做**。
+需求 1~6、8 + **需求 7 一期（Edit & Resend，插入語義）已全部落代碼並提交**（2 個 commit，**零編譯**）；需求 7 二期（任意 RPC 重放）未做，等 CI 綠後落地。驗證通道已切到 GitHub Actions 發布流水線（Win10 amd64）。
 
 ---
 
@@ -16,7 +16,7 @@
 | 項 | 值 |
 |---|---|
 | 倉庫 | `/root/workspace/AyuGramDesktop` = AyuGramDesktop（tdesktop **v7.0.9** fork，分支 `dev`，HEAD `db3b9891cb`，TL layer **228**） |
-| 改動狀態 | **已提交**（單一 commit，基線 `db3b9891cb`；權威變更集 = `git show --stat HEAD`） |
+| 改動狀態 | **已提交 2 個 commit**：`6ac8e67915`（源碼+文檔，47 files）、`98c7dd830f`（CI 提取 errors.txt）；基線 `db3b9891cb`；**尚未 push、尚未打 tag、零編譯結果** |
 | 子模塊 | **37/37 全部未初始化**（含 `cmake`、`Telegram/lib_base`、`lib_ui`、`lib_tl`、`lib_storage`、`codegen`）→ 這些頭文件不在盤上 |
 | 構建能力 | **零**：無 cmake/ninja/clang/ccache/docker；無 `out/`；`../Libraries`、`../win64/Libraries` 全缺 |
 | 硬件 | 5 核 / 9.3G 內存（可用約 4G）/ 磁盤波動大（曾 31G，也曾 2.8G/98% 滿） |
@@ -40,6 +40,8 @@
 ---
 
 ## 4. 已落地代碼改動（21 文件，已提交）
+
+> Commit：`6ac8e67915`（源碼+文檔，47 files / +8555−16）＋ `98c7dd830f`（CI errors.txt）；基線 `db3b9891cb`。
 
 ### P0 構建修復（HEAD 原本編不過）
 | 文件 | 改動 |
@@ -155,11 +157,14 @@ ADR-0003 方案完備（一期：載入原文到輸入框可編輯後重發；�
 
 ## 9. 下一步（按優先級）
 
-1. **外部構建機驗證**（唯一能消除「零編譯」風險的事）：子模塊對齊（`cmake`/`lib_base`/`lib_ui`/`lib_tl`/`lib_storage`/`codegen`）；命令 `cmake --build out --config Debug --target Telegram`（Windows，AGENTS.md:48-54）或 WSL `Telegram/build/docker/centos_env/build_debug.sh`；回填**首個錯誤塊**。回歸重點：受保護群轉發是否走重傳、群設置「限制轉發」回顯、右鍵 Save AG Checkpoint、雙擊右鍵手勢、進群默認定位、受保護群**不應**出現「導出聊天記錄」；**新增**：設置頁開關（AyuGram → Save checkpoint on double right-click）、論壇話題跳轉後定位、清空歷史後檢查點消失、註銷後檢查點清空。
-2. **需求 7 二期（任意 RPC 重放）**：攔截點 `MTP::Instance::sendSerialized`（`mtproto/mtp_instance.h:162/:206`），需 Debug 開關 + 回包展示；一期（Edit & Resend）已完成，等人工回歸。
-3. R1 缺口：頻道刪聊天清理檢查點（`data_session.cpp:1645` 走 `Unload` 不發 `notifyHistoryCleared`，需另找鉤子或改走 clear 路徑）。
-4. 技術債：`ChatDataFlag::AyuNoForwards` 改 `: uint32` + `1U << 31`（**必須有編譯器兜底**）。
-5. ~~`_media->allowsForward()` 取證~~ → 已完成（t4，無需改動）。
+1. **等待首次 GitHub Actions 構建**（本倉庫**尚未 push、尚未打 tag**）。下一會話第一件事：確認用戶已執行
+   `git push origin dev` → `git tag v7.0.9` → `git push origin v7.0.9`
+   工作流 `.github/workflows/release-win-amd64.yml`（觸發 `push: tags v*` 與 `release: published`；僅 Win10 amd64）。首次 4~7 小時；失敗看 Actions 產物 `prepare-log` 或 `build-logs/errors.txt`。
+2. **一次修完編譯錯誤**：拿到 `errors.txt` 後按文件聚合、一次改完，再打新 tag 觸發第二輪（命中緩存 30~50 分鐘）。
+3. **需求 7 二期（任意 RPC 重放）**：**等 CI 綠後再落**（ADR-0003 附錄 A 說明了為什麼零編譯環境不能盲寫：編輯器 UI 依賴 `lib_ui` 頭）。順序：`sendSerialized` 攔截緩存 → 正常管線回放（禁字節重發）→ Debug 開關 + 回包展示。
+4. R1 缺口：頻道刪聊天清理檢查點（`data_session.cpp:1645` 走 `Unload` 不發 `notifyHistoryCleared`）。
+5. 技術債：`ChatDataFlag::AyuNoForwards` 改 `: uint32` + `1U << 31`（**必須有編譯器兜底**）。
+6. ~~`_media->allowsForward()` 取證~~ → 已完成（t4，無需改動）。
 
 ---
 
@@ -174,14 +179,22 @@ ADR-0003 方案完備（一期：載入原文到輸入框可編輯後重發；�
 
 ---
 
-## 11. 2025-10-22 並行回合補記
+## 11. 2025-10-22 回合補記（含收盤快照）
 
 - 五路 subagent 并发（orchestrate fanout）：**T1 設置頁開關 ✅**、**T2 孤兒清理 ✅（DB 層 + 主線程接線）**、**T3 跳轉帶 topic ✅**（subagent 誤報 error，代碼已落盤，主線程已驗證）、**T4 媒體閘門取證 ✅**、**T5 需求 7 路徑取證 ✅**。
-- 權威變更集更新為 **21 文件 / +356−16**（仍未提交、仍未編譯）。
-- 報告：`docs/parallel-2025-10-22/{t1-settings-toggle,t2-orphan-cleanup,t4-media-gate,t5-req7-path}.md` + `README.md`（T3 無獨立報告，以 diff 為準）。
-- 主線程收口：核驗 T1/T3/T4/T5 六處關鍵結論行號；親手接線 T2（`data_session.cpp:2374` / `main_session.cpp:348`）；更新 HANDOFF §1/§2/§3/§4/§6/§7/§8/§9。
-- **編譯驗證包**：`docs/build-package/req1-7-uncommitted.diff`（759 行，權威 patch）、`external-verify.md`（外部機一次性取全錯誤命令 + 15 項回歸清單）、`github-actions.md`（GHA 使用說明）。
-- **GitHub Actions**：`.github/workflows/build-win-amd64.yml`（windows-2022；job1 prepare-libs 構建並緩存依賴，job2 build Debug `/m` 并行全量編譯；產物 `build.log`/`errors.txt`/`AyuGram.exe`）。
-- **T3 補報告**：`docs/parallel-2025-10-22/t3-jump-topic.md`（subagent 漏交，主線程補齊並驗證）。
+- 主線程收口：核驗 T1/T3/T4/T5 六處關鍵結論行號；親手接線 T2（`data_session.cpp:2374` / `main_session.cpp:348`）；更新 HANDOFF 各節。
 - **需求 7 一期**（Edit & Resend，插入語義）：`context_menu.{h,cpp}` 新增 action，一欄/兩欄兩個調用點分別接 `ListWidget::insertTextAtCursor` / `HistoryWidget::insertTextAtCursor`（見 §4 P3）。
-- **GitHub Actions 發布工作流**：`.github/workflows/release-win-amd64.yml`（觸發：tag `v*` / `release: published`；產出單 exe 便攜 zip + `sha256sums.txt`，自動建 Release；說明見 `docs/build-package/github-actions.md`）。
+- **GitHub Actions 發布流水線**：`.github/workflows/release-win-amd64.yml`（觸發 tag `v*` / `release: published`；僅 Win10 amd64；Release 構建；單 exe 便攜 zip + `sha256sums.txt`；自動建 Release；`errors.txt` 聚合編譯錯誤）。使用說明與 15 項回歸清單：`docs/build-package/github-actions.md`。
+- **需求 7 二期**：未寫；落地前置與順序寫在 `docs/adr/0003-editable-message-replay.md` 附錄 A。
+- **提交**：`6ac8e67915`（需求 1~8 + 需求 7 一期 + 文檔，47 files / +8555−16）、`98c7dd830f`（CI errors.txt 提取）。工作區乾淨（僅剩 `.codegraph/`、`.dsh-file-claim/`、dsh 運行日誌等工具產物）。
+- **零編譯狀態未變**：所有結論仍需首輪 CI 驗證。
+
+---
+
+## 12. 新會話開場速覽（2025-10-22 收盤）
+
+1. 分支 `dev`，基線 `db3b9891cb`，**已提交 2 commit**（見 §11），**尚未 push / 尚未打 tag / 尚無任何編譯結果**。
+2. 編譯驗證 = GitHub Actions 發布流水線（`.github/workflows/release-win-amd64.yml`）。下一會話第一件事：問用戶「推了嗎？tag 打了嗎？`errors.txt` / `prepare.log` 貼一下」。
+3. 拿到 `errors.txt` → 按文件一次修完 → 打新 tag（如 `v7.0.9-ayu.2`）→ 第二輪（緩存命中 30~50 分鐘）。
+4. CI 綠後：寫需求 7 二期（ADR-0003 附錄 A），並過 `docs/build-package/github-actions.md` §7 的 15 項人工回歸。
+5. 剩餘缺口：R1 頻道刪聊天清理、技術債 `AyuNoForwards` 符號位（§6）。
