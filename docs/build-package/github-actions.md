@@ -62,12 +62,15 @@ zip 內：
 | 想一次拿全部編譯錯誤 | Actions 產物 `build-logs/errors.txt`（已用 `error C####`/`LNK####` 聚合，並寫入 job summary） |
 | 登錄失敗（API 憑據不匹配） | 改 workflow 頂部 `TDESKTOP_API_ID/HASH` 為本 fork 實際憑據（當前用 tdesktop 公開測試憑據 `2040`） |
 | Release 沒有資產 | 看 build job 日誌的 `Publish release` 步驟；權限需 `contents: write`（已聲明） |
+| `[2/34](ThirdParty/msys64): FAILED` 且 `error: target not found: mingw-w64-x86_64-diffutils` | MSYS2 已下架 mingw64 版的 diffutils。已改為安裝 `msys/diffutils` 並用 `where diff` 斷言（`prepare.py:479-486`） |
 
 ## 6. 已知風險
 
 1. **首次 prepare 是最脆弱的環節**：下載 msys2/NuGet + 從源碼編 Qt/OpenSSL/FFmpeg，GitHub 4vCPU runner 上可能踩路徑/下載問題 → 失敗留 `prepare.log`，按報錯逐項修，不必重來全套。
+   - 快取在**失敗時也會保存**（`actions/cache/restore` + `save` + `if: always()`），且每個階段開頭 `rmdir` 自清，所以重跑會重用已完成階段，只重做失敗那階之後。
+   - 階段的「已完成」標記是 `<ThirdParty 或 Libraries/win64>/cache_keys/<stage>`，它在快取目錄內，因此跨 run 能真正命中（不是每次都 `NOT FOUND`）。
 2. 倉內文檔寫 VS2026 + v14.44 工具集；`windows-2022` 是 VS2022（v143）。對 Win10 amd64 足夠。
-3. Qt 版本：倉庫 `qt_version.py` 對 Win x64 默認 Qt **5.15.19**（`CMakeLists.txt:2317` 有 `QT_VERSION LESS 6` 分支，說明本 fork 支持 Qt5 路徑）。若實際發佈用 Qt6，把 yaml 的 `QT` 改成 `6.11.1` 並給 prepare 傳 `qt6`。
+3. Qt 版本：倉庫 `qt_version.py` 對 Win x64 默認 Qt **5.15.19**（Win arm/qt6 才走 6.11.2）。若實際發佈用 Qt6，把 yaml 的 `QT` 改成對應版本並給 prepare 傳 `qt6`。
 4. 緩存上限 10 GB/倉庫；`Libraries/win64` + `ThirdParty` 若超限，緩存會被跳過（不影響本次構建，只影響下次提速）。
 
 ## 7. 發版前回歸清單（人工，編譯器抓不到）

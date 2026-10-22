@@ -46,13 +46,15 @@ jobs:
           arch: x64
 
       - name: Restore ThirdParty cache
-        uses: actions/cache@v4
+        id: cache-thirdparty
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/../ThirdParty
           key: thirdparty-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py') }}
 
       - name: Restore Libraries cache
-        uses: actions/cache@v4
+        id: cache-libs
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/../Libraries/win64
           key: libs-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py', 'Telegram/CMakeLists.txt') }}
@@ -67,6 +69,22 @@ jobs:
           $code = $LASTEXITCODE
           Copy-Item "$env:RUNNER_TEMP/prepare.log" "$env:GITHUB_WORKSPACE/prepare.log" -ErrorAction SilentlyContinue
           exit $code
+
+      - name: Save ThirdParty cache
+        if: always() && steps.cache-thirdparty.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/../ThirdParty
+          key: ${{ steps.cache-thirdparty.outputs.cache-primary-key }}
+
+      - name: Save Libraries cache
+        if: always() && steps.cache-libs.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/../Libraries/win64
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
 
       - name: Upload prepare log
         if: always()
@@ -103,13 +121,13 @@ jobs:
           arch: x64
 
       - name: Restore ThirdParty cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/../ThirdParty
           key: thirdparty-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py') }}
 
       - name: Restore Libraries cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/../Libraries/win64
           key: libs-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py', 'Telegram/CMakeLists.txt') }}
