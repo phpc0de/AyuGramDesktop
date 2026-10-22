@@ -260,12 +260,14 @@ void AddAyuGramActions(PeerData *peerData,
 	const auto showFilters = settings.filtersEnabled()
 		&& (!user || user->isBot());
 	const auto saveDeletedMessages = settings.saveDeletedMessages();
-	if (!showFilters && !saveDeletedMessages) {
-		return;
-	}
 
 	const auto topic = peerData->isForum() && thread ? thread->asTopic() : nullptr;
 	const auto topicId = topic ? topic->rootId().bare : 0;
+	const auto checkpoint = AyuMessages::getCheckpoint(peerData, topicId);
+	const auto hasCheckpoint = checkpoint && checkpoint->messageId > 0;
+	if (!showFilters && !saveDeletedMessages && !hasCheckpoint) {
+		return;
+	}
 
 	addCallback(Window::PeerMenuCallback::Args{
 		.text = u"AyuGram"_q,
@@ -316,6 +318,33 @@ void AddAyuGramActions(PeerData *peerData,
 				addAction({
 					.text = tr::ayu_ClearDeletedMenuText(tr::now),
 					.handler = ClearDeletedMessagesHandler(sessionController, peerData, topicId),
+					.icon = &st::menuIconClearAttention,
+					.isAttention = true,
+				});
+			}
+			if (hasCheckpoint) {
+				addAction(
+					tr::ayu_JumpToCheckpointMenuText(tr::now),
+					[=]
+					{
+						if (topic) {
+							sessionController->showTopic(
+								topic,
+								MsgId(checkpoint->messageId),
+								Window::SectionShow::Way::ClearStack);
+						} else {
+							sessionController->showPeerHistory(
+								peerData,
+								Window::SectionShow::Way::ClearStack,
+								MsgId(checkpoint->messageId));
+						}
+					},
+					&st::menuIconShowInChat);
+				addAction({
+					.text = tr::ayu_ClearCheckpointMenuText(tr::now),
+					.handler = [=] {
+						AyuMessages::clearCheckpoint(peerData, topicId);
+					},
 					.icon = &st::menuIconClearAttention,
 					.isAttention = true,
 				});
@@ -1001,6 +1030,42 @@ void AddCreateFilterAction(not_null<Ui::PopupMenu*> menu,
 			controller->show(Settings::RegexEditBox(&filter, {}, getDialogIdFromPeer(item->history()->peer), true));
 		},
 		&st::menuIconAddToFolder);
+}
+
+void AddCheckpointAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item) {
+	if (item->isLocal()) {
+		return;
+	}
+
+	menu->addAction(
+		tr::ayu_SaveCheckpointContextMenuText(tr::now),
+		[=]
+		{
+			AyuMessages::setCheckpoint(item);
+		},
+		&st::menuIconInfo);
+}
+
+void AddEditAndResendAction(
+		not_null<Ui::PopupMenu*> menu,
+		HistoryItem *item,
+		std::function<void(const QString &)> insertText) {
+	if (!item || item->isService() || item->isLocal()) {
+		return;
+	}
+
+	const auto text = item->originalText();
+	if (text.text.isEmpty()) {
+		return;
+	}
+
+	menu->addAction(
+		tr::ayu_EditAndResendMenuText(tr::now),
+		[=]
+		{
+			insertText(text.text);
+		},
+		&st::menuIconEdit);
 }
 
 } // namespace AyuUi

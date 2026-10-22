@@ -771,6 +771,8 @@ bool PeerData::canEditMessagesIndefinitely() const {
 bool PeerData::canExportChatHistory() const {
 	if (isRepliesChat() || isVerifyCodes() || !allowsForwarding()) {
 		return false;
+	} else if (isAyuNoForwards()) {
+		return false;
 	} else if (const auto channel = asChannel()) {
 		if (!channel->amIn() && channel->invitePeekExpires()) {
 			return false;

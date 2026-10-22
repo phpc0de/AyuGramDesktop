@@ -135,3 +135,14 @@ public:
 	int messageId;
 	int entityCreateDate;
 };
+
+class Checkpoint
+{
+public:
+	ID fakeId;
+	ID userId;
+	ID dialogId;
+	ID topicId;
+	ID messageId;
+	int date;
+};

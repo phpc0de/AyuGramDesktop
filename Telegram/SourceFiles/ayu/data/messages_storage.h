@@ -8,6 +8,8 @@
 
 #include "ayu/data/entities.h"
 
+#include <optional>
+
 namespace AyuMessages {
 
 void addEditedMessage(not_null<HistoryItem *> item);
@@ -19,5 +21,10 @@ std::vector<AyuMessageBase> getDeletedMessages(not_null<PeerData*> peer, ID topi
 bool hasDeletedMessages(not_null<PeerData*> peer, ID topicId);
 void removeDeletedMessage(not_null<HistoryItem*> item);
 void clearDeletedMessages(not_null<PeerData*> peer, ID topicId);
+
+void setCheckpoint(not_null<HistoryItem*> item);
+std::optional<Checkpoint> getCheckpoint(not_null<PeerData*> peer, ID topicId);
+std::optional<Checkpoint> getLatestCheckpoint(not_null<PeerData*> peer);
+void clearCheckpoint(not_null<PeerData*> peer, ID topicId);
 
 }

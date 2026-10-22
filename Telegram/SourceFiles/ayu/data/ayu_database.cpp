@@ -141,7 +141,20 @@ auto storage = make_storage(
 		make_column("dialogId", &SpyMessageContentsRead::dialogId),
 		make_column("messageId", &SpyMessageContentsRead::messageId),
 		make_column("entityCreateDate", &SpyMessageContentsRead::entityCreateDate)
-	)
+	),
+	make_table<Checkpoint>(
+		"Checkpoint",
+		make_column("fakeId", &Checkpoint::fakeId, primary_key().autoincrement()),
+		make_column("userId", &Checkpoint::userId),
+		make_column("dialogId", &Checkpoint::dialogId),
+		make_column("topicId", &Checkpoint::topicId),
+		make_column("messageId", &Checkpoint::messageId),
+		make_column("date", &Checkpoint::date)
+	),
+	make_index("idx_checkpoint_userId_dialogId_topicId",
+			   column<Checkpoint>(&Checkpoint::userId),
+			   column<Checkpoint>(&Checkpoint::dialogId),
+			   column<Checkpoint>(&Checkpoint::topicId))
 );
 
 namespace AyuMigrations {
@@ -578,6 +591,107 @@ bool hasPerDialogFilters() {
 	} catch (std::exception &ex) {
 		LOG(("Failed to check if there's any filters: %1").arg(ex.what()));
 		return false;
+	}
+}
+
+void setCheckpoint(ID userId, ID dialogId, ID topicId, ID messageId) {
+	try {
+		storage.begin_transaction();
+		storage.remove_all<Checkpoint>(
+			where(
+				column<Checkpoint>(&Checkpoint::userId) == userId and
+				column<Checkpoint>(&Checkpoint::dialogId) == dialogId and
+				column<Checkpoint>(&Checkpoint::topicId) == topicId
+			)
+		);
+		Checkpoint checkpoint;
+		checkpoint.userId = userId;
+		checkpoint.dialogId = dialogId;
+		checkpoint.topicId = topicId;
+		checkpoint.messageId = messageId;
+		checkpoint.date = base::unixtime::now();
+		storage.insert(checkpoint);
+		storage.commit();
+	} catch (std::exception &ex) {
+		try {
+			storage.rollback();
+		} catch (...) {
+		}
+		LOG(("Failed to save checkpoint for some reason: %1").arg(ex.what()));
+	}
+}
+
+std::optional<Checkpoint> getCheckpoint(ID userId, ID dialogId, ID topicId) {
+	try {
+		const auto result = storage.get_all<Checkpoint>(
+			where(
+				column<Checkpoint>(&Checkpoint::userId) == userId and
+				column<Checkpoint>(&Checkpoint::dialogId) == dialogId and
+				column<Checkpoint>(&Checkpoint::topicId) == topicId
+			),
+			order_by(column<Checkpoint>(&Checkpoint::fakeId)).desc(),
+			limit(1)
+		);
+		return result.empty() ? std::nullopt : std::optional<Checkpoint>(result.front());
+	} catch (std::exception &ex) {
+		LOG(("Failed to read checkpoint for some reason: %1").arg(ex.what()));
+		return std::nullopt;
+	}
+}
+
+std::optional<Checkpoint> getLatestCheckpoint(ID userId, ID dialogId) {
+	try {
+		const auto result = storage.get_all<Checkpoint>(
+			where(
+				column<Checkpoint>(&Checkpoint::userId) == userId and
+				column<Checkpoint>(&Checkpoint::dialogId) == dialogId
+			),
+			order_by(column<Checkpoint>(&Checkpoint::fakeId)).desc(),
+			limit(1)
+		);
+		return result.empty() ? std::nullopt : std::optional<Checkpoint>(result.front());
+	} catch (std::exception &ex) {
+		LOG(("Failed to read checkpoint for some reason: %1").arg(ex.what()));
+		return std::nullopt;
+	}
+}
+
+void clearCheckpoint(ID userId, ID dialogId, ID topicId) {
+	try {
+		storage.remove_all<Checkpoint>(
+			where(
+				column<Checkpoint>(&Checkpoint::userId) == userId and
+				column<Checkpoint>(&Checkpoint::dialogId) == dialogId and
+				column<Checkpoint>(&Checkpoint::topicId) == topicId
+			)
+		);
+	} catch (std::exception &ex) {
+		LOG(("Failed to remove checkpoint for some reason: %1").arg(ex.what()));
+	}
+}
+
+void clearCheckpointsForDialog(ID userId, ID dialogId) {
+	try {
+		storage.remove_all<Checkpoint>(
+			where(
+				column<Checkpoint>(&Checkpoint::userId) == userId and
+				column<Checkpoint>(&Checkpoint::dialogId) == dialogId
+			)
+		);
+	} catch (std::exception &ex) {
+		LOG(("Failed to remove dialog checkpoints for some reason: %1").arg(ex.what()));
+	}
+}
+
+void clearAllCheckpoints(ID userId) {
+	try {
+		storage.remove_all<Checkpoint>(
+			where(
+				column<Checkpoint>(&Checkpoint::userId) == userId
+			)
+		);
+	} catch (std::exception &ex) {
+		LOG(("Failed to remove all checkpoints for some reason: %1").arg(ex.what()));
 	}
 }
 

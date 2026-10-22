@@ -1131,7 +1131,15 @@ void AddMessageActions(
 		AyuUi::AddHideMessageAction(menu, request.item);
 		AyuUi::AddUserMessagesAction(menu, request.item);
 		AyuUi::AddRepeatMessageAction(menu, request.item, context);
+		AyuUi::AddEditAndResendAction(
+			menu,
+			request.item,
+			[=](const QString &text)
+			{
+				list->insertTextAtCursor(text);
+			});
 		AyuUi::AddMessageDetailsAction(menu, request.item);
+		AyuUi::AddCheckpointAction(menu, request.item);
 	}
 
 	AddPostLinkAction(menu, request);

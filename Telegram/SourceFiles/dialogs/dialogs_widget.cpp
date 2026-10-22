@@ -110,6 +110,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // AyuGram includes
 #include "ayu/ayu_settings.h"
 #include "ayu/utils/telegram_helpers.h"
+#include "ayu/data/messages_storage.h"
 #include "base/platform/base_platform_haptic.h"
 
 
@@ -1187,9 +1188,18 @@ void Widget::chosenRow(const ChosenRow &row) {
 		return;
 	} else if (history) {
 		const auto peer = history->peer;
-		const auto showAtMsgId = controller()->uniqueChatsInSearchResults(
+		const auto inSearchResults = controller()->uniqueChatsInSearchResults(
 			_searchState
-		) ? ShowAtUnreadMsgId : row.message.fullId.msg;
+		);
+		auto showAtMsgId = inSearchResults
+			? ShowAtUnreadMsgId
+			: row.message.fullId.msg;
+		if (_searchState.query.isEmpty()) {
+			const auto checkpoint = AyuMessages::getLatestCheckpoint(peer);
+			if (checkpoint && checkpoint->messageId > 0) {
+				showAtMsgId = MsgId(checkpoint->messageId);
+			}
+		}
 		auto params = Window::SectionShow(
 			Window::SectionShow::Way::ClearStack);
 		params.highlight = Window::SearchHighlightId(_searchState.query);

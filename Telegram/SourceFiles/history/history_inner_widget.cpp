@@ -140,12 +140,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ayu/ui/context_menu/context_menu.h"
 #include "ayu/ui/settings/filters/edit_filter.h"
 #include "ayu/utils/telegram_helpers.h"
+#include "ayu/data/messages_storage.h"
 #include "data/data_document_media.h"
 
 
 namespace {
 
 constexpr auto kScrollDateHideTimeout = 800;
+
+constexpr auto kCheckpointGestureInterval = 500;
 constexpr auto kScrollDateHideOnDayCrossingTimeout = crl::time(3000);
 constexpr auto kUnloadHeavyPartsPages = 2;
 constexpr auto kClearUserpicsAfter = 50;
@@ -405,7 +408,8 @@ HistoryInner::HistoryInner(
 	[=] { mouseActionUpdate(QCursor::pos()); setCursor(_cursor); },
 	[=] { return window()->isActiveWindow(); })
 , _scrollDateCheck([this] { scrollDateCheck(); })
-, _scrollDateHideTimer([this] { scrollDateHideByTimer(); }) {
+, _scrollDateHideTimer([this] { scrollDateHideByTimer(); })
+, _checkpointGestureTimer([this] { showDeferredContextMenu(); }) {
 	_history->delegateMixin()->setCurrent(this);
 	if (_migrated) {
 		_migrated->delegateMixin()->setCurrent(this);
@@ -2528,6 +2532,10 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 	if (_pinnedItem == item) {
 		_pinnedItem = nullptr;
 	}
+	if (_checkpointGestureItem == item) {
+		_checkpointGestureTimer.cancel();
+		_checkpointGestureItem = nullptr;
+	}
 	if (_history != item->history() && _migrated != item->history()) {
 		return;
 	}
@@ -2834,7 +2842,61 @@ HistoryView::SelectedQuote HistoryInner::selectedQuote(
 }
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
+	if (AyuSettings::getInstance().saveCheckpointOnDoubleRightClick()
+		&& e->reason() == QContextMenuEvent::Mouse) {
+		if (_checkpointGestureTimer.isActive()) {
+			_checkpointGestureTimer.cancel();
+			if (_checkpointGestureItem) {
+				AyuMessages::setCheckpoint(_checkpointGestureItem);
+			}
+			_checkpointGestureItem = nullptr;
+			_checkpointGesturePos = QPoint();
+			e->accept();
+			return;
+		}
+		const auto item = checkpointItemAt(mapFromGlobal(e->globalPos()).y());
+		if (item && !item->isLocal() && item->id > 0) {
+			_checkpointGestureItem = item;
+			_checkpointGesturePos = e->globalPos();
+			_checkpointGestureTimer.callOnce(kCheckpointGestureInterval);
+			e->accept();
+			return;
+		}
+		_checkpointGestureTimer.cancel();
+		_checkpointGestureItem = nullptr;
+		_checkpointGesturePos = QPoint();
+	}
 	showContextMenu(e);
+}
+
+void HistoryInner::showDeferredContextMenu() {
+	if (!_checkpointGestureItem) {
+		_checkpointGesturePos = QPoint();
+		return;
+	}
+	const auto pos = _checkpointGesturePos;
+	_checkpointGestureItem = nullptr;
+	_checkpointGesturePos = QPoint();
+	auto contextMenu = QContextMenuEvent(
+		QContextMenuEvent::Mouse,
+		mapFromGlobal(pos),
+		pos);
+	showContextMenu(&contextMenu);
+}
+
+HistoryItem *HistoryInner::checkpointItemAt(int y) {
+	auto result = static_cast<HistoryItem*>(nullptr);
+	enumerateItems<EnumItemsDirection::TopToBottom>(
+		[&](not_null<Element*> view, int top, int bottom) {
+			if (bottom <= y) {
+				return true;
+			} else if (top > y) {
+				return false;
+			}
+			result = view->data();
+			return false;
+		});
+	return result;
 }
 
 void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
@@ -3129,7 +3191,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		AyuUi::AddHideMessageAction(_menu, item);
 		AyuUi::AddUserMessagesAction(_menu, item);
 		AyuUi::AddRepeatMessageAction(_menu, item, HistoryView::Context::History);
+		AyuUi::AddEditAndResendAction(
+			_menu,
+			item,
+			[=](const QString &text)
+			{
+				_widget->insertTextAtCursor(text);
+			});
 		AyuUi::AddMessageDetailsAction(_menu, item);
+		AyuUi::AddCheckpointAction(_menu, item);
 	};
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo, HistoryItem *item) {
 		const auto media = photo->activeMediaView();

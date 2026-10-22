@@ -145,4 +145,39 @@ void clearDeletedMessages(not_null<PeerData*> peer, ID topicId) {
 	AyuDatabase::clearDeletedMessages(userId, getDialogIdFromPeer(peer), topicId);
 }
 
+
+void setCheckpoint(not_null<HistoryItem*> item) {
+	const auto peer = item->history()->peer;
+	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
+	const ID topicId = item->topic() ? item->topicRootId().bare : 0;
+	AyuDatabase::setCheckpoint(
+		userId,
+		getDialogIdFromPeer(peer),
+		topicId,
+		item->id.bare);
+}
+
+std::optional<Checkpoint> getCheckpoint(not_null<PeerData*> peer, ID topicId) {
+	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
+	return AyuDatabase::getCheckpoint(
+		userId,
+		getDialogIdFromPeer(peer),
+		topicId);
+}
+
+std::optional<Checkpoint> getLatestCheckpoint(not_null<PeerData*> peer) {
+	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
+	return AyuDatabase::getLatestCheckpoint(
+		userId,
+		getDialogIdFromPeer(peer));
+}
+
+void clearCheckpoint(not_null<PeerData*> peer, ID topicId) {
+	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
+	AyuDatabase::clearCheckpoint(
+		userId,
+		getDialogIdFromPeer(peer),
+		topicId);
+}
+
 }

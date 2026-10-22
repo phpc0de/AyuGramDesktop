@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // AyuGram includes
 #include "ayu/ayu_settings.h"
+#include "ayu/data/ayu_database.h"
 #include "api/api_blocked_peers.h"
 
 
@@ -347,6 +348,7 @@ QByteArray Session::validTmpPassword() const {
 // Can be called only right before ~Session.
 void Session::finishLogout() {
 	unlockTerms();
+	AyuDatabase::clearAllCheckpoints(userId().bare & PeerId::kChatTypeMask);
 	data().clear();
 	data().clearLocalStorage();
 }

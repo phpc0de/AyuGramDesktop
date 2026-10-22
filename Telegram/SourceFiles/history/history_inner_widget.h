@@ -438,6 +438,8 @@ private:
 		not_null<HistoryItem*> item) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
+	void showDeferredContextMenu();
+	HistoryItem *checkpointItemAt(int y);
 	void cancelContextDownload(not_null<DocumentData*> document);
 	void openContextGif(FullMsgId itemId);
 	void saveContextGif(FullMsgId itemId);
@@ -708,6 +710,9 @@ private:
 	Ui::Animations::Simple _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	base::Timer _scrollDateHideTimer;
+	base::Timer _checkpointGestureTimer;
+	HistoryItem *_checkpointGestureItem = nullptr;
+	QPoint _checkpointGesturePos;
 	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	bool _scrollDateAfterDayCrossing = false;

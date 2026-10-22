@@ -650,6 +650,12 @@ void BuildSpyEssentials(SectionBuilder &builder, AyuSectionBuilder &ayu) {
 		.getter = &AyuSettings::saveMessagesHistory,
 		.setter = &AyuSettings::setSaveMessagesHistory,
 	});
+	ayu.addSettingToggle({
+		.id = u"ayu/saveCheckpointOnDoubleClick"_q,
+		.title = tr::ayu_SaveCheckpointOnDoubleRightClickText(),
+		.getter = &AyuSettings::saveCheckpointOnDoubleRightClick,
+		.setter = &AyuSettings::setSaveCheckpointOnDoubleRightClick,
+	});
 
 	ayu.addSectionDivider();
 

@@ -73,7 +73,7 @@ bool ChatData::isAyuNoForwards() const {
 }
 
 bool ChatData::allowsForwarding() const {
-	return !(flags() & Flag::NoForwards);
+	return true;
 }
 
 bool ChatData::canEditInformation() const {

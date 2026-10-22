@@ -1,0 +1,221 @@
+name: release-win-amd64
+
+on:
+  push:
+    tags:
+      - "v*"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-win-amd64
+  cancel-in-progress: false
+
+env:
+  QT: "5.15.19"
+  Platform: x64
+  TDESKTOP_API_ID: "2040"
+  TDESKTOP_API_HASH: "b18441a1ff607e10a989891a5462e627"
+
+jobs:
+  prepare-libs:
+    name: prepare libraries (Qt 5.15.19 static)
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'release' && !contains(github.event.release.body || '', '<!-- auto-built -->'))
+    runs-on: windows-2022
+    timeout-minutes: 350
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Setup MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Restore ThirdParty cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../ThirdParty
+          key: thirdparty-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py') }}
+
+      - name: Restore Libraries cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../Libraries/win64
+          key: libs-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py', 'Telegram/CMakeLists.txt') }}
+
+      - name: Prepare libraries
+        shell: pwsh
+        env:
+          Platform: x64
+        run: |
+          Set-Location Telegram/build/prepare
+          cmd /c "win.bat" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/prepare.log"
+          $code = $LASTEXITCODE
+          Copy-Item "$env:RUNNER_TEMP/prepare.log" "$env:GITHUB_WORKSPACE/prepare.log" -ErrorAction SilentlyContinue
+          exit $code
+
+      - name: Upload prepare log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepare-log
+          path: prepare.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build:
+    name: build + package + publish
+    needs: prepare-libs
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'release' && !contains(github.event.release.body || '', '<!-- auto-built -->'))
+    runs-on: windows-2022
+    timeout-minutes: 350
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Setup MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Restore ThirdParty cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../ThirdParty
+          key: thirdparty-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py') }}
+
+      - name: Restore Libraries cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../Libraries/win64
+          key: libs-win64-full-${{ hashFiles('.gitmodules', 'Telegram/build/prepare/prepare.py', 'Telegram/build/qt_version.py', 'Telegram/CMakeLists.txt') }}
+
+      - name: Verify libraries
+        shell: pwsh
+        run: |
+          if (!(Test-Path "${{ github.workspace }}/../Libraries/win64")) {
+            throw "Libraries 缓存缺失：prepare-libs job 失败。请先看 prepare-log artifact。"
+          }
+
+      - name: Compute version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event_name == 'release' && github.event.release.tag_name || github.ref_name }}"
+          $ver = $tag -replace '^v', ''
+          "VERSION_TAG=$tag" | Out-File -Append -Encoding UTF8 $env:GITHUB_ENV
+          "VERSION=$ver" | Out-File -Append -Encoding UTF8 $env:GITHUB_ENV
+          if ($ver -match '^(\d+\.\d+\.\d+)') {
+            "NUM_VERSION=$($Matches[1])" | Out-File -Append -Encoding UTF8 $env:GITHUB_ENV
+            "SEMVER=1" | Out-File -Append -Encoding UTF8 $env:GITHUB_ENV
+          } else {
+            "NUM_VERSION=$ver" | Out-File -Append -Encoding UTF8 $env:GITHUB_ENV
+            "SEMVER=0" | Out-File -Append -Encoding UTF8 $env:GITHUB_ENV
+          }
+          "VERSION=$ver" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+
+      - name: Inject version (when tag is semver-like)
+        shell: pwsh
+        run: |
+          if ($env:SEMVER -eq "1") {
+            python Telegram/build/set_version.py "$env:NUM_VERSION"
+          } else {
+            Write-Host "tag 不是 x.y.z 形式，内部版本保持仓库默认"
+          }
+
+      - name: Configure
+        shell: pwsh
+        env:
+          Platform: x64
+        run: |
+          Set-Location Telegram
+          cmd /c "configure.bat x64 -D TDESKTOP_API_ID=$env:TDESKTOP_API_ID -D TDESKTOP_API_HASH=$env:TDESKTOP_API_HASH" 2>&1 |
+            Tee-Object -FilePath "$env:GITHUB_WORKSPACE/configure.log"
+          exit $LASTEXITCODE
+
+      - name: Build Telegram (Release, parallel, full log)
+        shell: pwsh
+        env:
+          Platform: x64
+        run: |
+          cmake --build out --config Release --target Telegram -- /m /v:m 2>&1 |
+            Tee-Object -FilePath "$env:GITHUB_WORKSPACE/build.log"
+          exit $LASTEXITCODE
+
+      - name: Package portable exe
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem out/Release -Filter *.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match 'AyuGram|Telegram' } |
+            Select-Object -First 1
+          if (-not $exe) {
+            throw "out/Release 下没有找到 exe"
+          }
+          New-Item -ItemType Directory -Force package, dist | Out-Null
+          Copy-Item $exe.FullName package/ -Force
+          foreach ($f in @("LICENSE", "LEGAL")) {
+            if (Test-Path $f) { Copy-Item $f package/ -Force }
+          }
+          $asset = "AyuGram_$($env:VERSION)_win64_portable.zip"
+          Compress-Archive -Path "package/*" -DestinationPath "dist/$asset" -Force
+          $hash = (Get-FileHash "dist/$asset" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $asset" | Set-Content dist/sha256sums.txt -Encoding ASCII
+          "ASSET_ZIP=dist/$asset" | Out-File -Append -Encoding UTF8 $env:GITHUB_ENV
+          Get-Content dist/sha256sums.txt | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+          Get-Item "dist/$asset" | Select-Object Name, Length | Format-List |
+            Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build.log
+            configure.log
+            prepare.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION_TAG }}
+          name: "AyuGram Desktop ${{ env.VERSION }} (win64)"
+          draft: false
+          prerelease: ${{ github.event_name == 'release' && github.event.release.prerelease || false }}
+          body: |
+            ## Windows 10 amd64 便攜版
+
+            - 構建：GitHub Actions（windows-2022 / MSVC v143 / Qt 5.15.19 靜態）
+            - 產物：`AyuGram_${{ env.VERSION }}_win64_portable.zip`（單可執行文件，解壓即用）
+            - 校驗：`sha256sums.txt`
+            - 版本號：`${{ env.VERSION }}`（由 tag/release 觸發時自動寫入）
+
+            <!-- auto-built -->
+          files: |
+            dist/*.zip
+            dist/sha256sums.txt

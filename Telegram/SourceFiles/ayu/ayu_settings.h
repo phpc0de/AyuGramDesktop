@@ -268,6 +268,7 @@ public:
 	void validate();
 
 	[[nodiscard]] bool saveDeletedMessages() const { return _saveDeletedMessages.current(); }
+	[[nodiscard]] bool saveCheckpointOnDoubleRightClick() const { return _saveCheckpointOnDoubleRightClick.current(); }
 	[[nodiscard]] bool saveMessagesHistory() const { return _saveMessagesHistory.current(); }
 	[[nodiscard]] bool saveForBots() const { return _saveForBots.current(); }
 	[[nodiscard]] bool filtersEnabled() const { return _filtersEnabled.current(); }
@@ -355,6 +356,7 @@ public:
 	[[nodiscard]] bool streamerMode() const { return _streamerMode.current(); }
 
 	void setSaveDeletedMessages(bool val);
+	void setSaveCheckpointOnDoubleRightClick(bool val);
 	void setSaveMessagesHistory(bool val);
 	void setSaveForBots(bool val);
 	void setFiltersEnabled(bool val);
@@ -445,6 +447,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> useGlobalGhostModeChanges() const { return _useGlobalGhostMode.changes(); }
 	[[nodiscard]] rpl::producer<bool> saveDeletedMessagesValue() const { return _saveDeletedMessages.value(); }
 	[[nodiscard]] rpl::producer<bool> saveDeletedMessagesChanges() const { return _saveDeletedMessages.changes(); }
+	[[nodiscard]] rpl::producer<bool> saveCheckpointOnDoubleRightClickValue() const { return _saveCheckpointOnDoubleRightClick.value(); }
+	[[nodiscard]] rpl::producer<bool> saveCheckpointOnDoubleRightClickChanges() const { return _saveCheckpointOnDoubleRightClick.changes(); }
 	[[nodiscard]] rpl::producer<bool> saveMessagesHistoryValue() const { return _saveMessagesHistory.value(); }
 	[[nodiscard]] rpl::producer<bool> saveMessagesHistoryChanges() const { return _saveMessagesHistory.changes(); }
 	[[nodiscard]] rpl::producer<bool> saveForBotsValue() const { return _saveForBots.value(); }
@@ -625,6 +629,7 @@ private:
 	[[nodiscard]] uint64 getOverriddenGhostUserId(uint64 userId) const { return _useGlobalGhostMode.current() ? 0 : userId; }
 
 	rpl::variable<bool> _saveDeletedMessages = true;
+	rpl::variable<bool> _saveCheckpointOnDoubleRightClick = true;
 	rpl::variable<bool> _saveMessagesHistory = true;
 	rpl::variable<bool> _saveForBots = false;
 	std::unordered_set<int64> _shadowBanIds;

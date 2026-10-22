@@ -497,7 +497,15 @@ HistoryItem::HistoryItem(
 			setRichPage(richPage);
 			setText(Iv::FlattenRichPageSummary(richPage));
 		} else {
-			setText(UnsupportedMessageText());
+			auto textWithEntities = TextWithEntities{
+				qs(data.vmessage()),
+				Api::EntitiesFromMTP(
+					&history->session(),
+					data.ventities().value_or_empty())
+			};
+			setText(textWithEntities.empty()
+				? UnsupportedMessageText()
+				: textWithEntities);
 		}
 		if (!Has<HistoryMessageReplyMarkup>()) {
 			AddComponents(HistoryMessageReplyMarkup::Bit());
@@ -2322,7 +2330,9 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	auto updatedText = edition.richPage
 		? Iv::FlattenRichPageSummary(edition.richPage)
 		: (mediaCheck == MediaCheckResult::Unsupported)
-		? UnsupportedMessageText()
+		? (edition.textWithEntities.empty()
+			? UnsupportedMessageText()
+			: edition.textWithEntities)
 		: checkedMedia
 		? edition.textWithEntities
 		: EnsureNonEmpty(edition.textWithEntities);
@@ -2634,7 +2644,9 @@ void HistoryItem::updateSentContent(
 			setText(Iv::FlattenRichPageSummary(richPage));
 		} else {
 			clearRichPage();
-			setText(UnsupportedMessageText());
+			setText(textWithEntities.empty()
+				? UnsupportedMessageText()
+				: textWithEntities);
 		}
 		setReplyMarkup(UnsupportedMessageMarkup());
 	} else {

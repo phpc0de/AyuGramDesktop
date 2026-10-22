@@ -8910,6 +8910,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "ayu_EditsHistoryMenuText" = "History";
 "ayu_PeekOnlineMenuText" = "Peek Online";
 "ayu_ClearDeletedMenuText" = "Clear Deleted";
+"ayu_SaveCheckpointContextMenuText" = "Save AG Checkpoint";
+"ayu_JumpToCheckpointMenuText" = "Jump to AG Checkpoint";
+"ayu_ClearCheckpointMenuText" = "Clear AG Checkpoint";
+"ayu_SaveCheckpointOnDoubleRightClickText" = "Save checkpoint on double right-click";
+"ayu_EditAndResendMenuText" = "Edit & Resend";
 "ayu_ViewDeletedMenuText" = "View Deleted";
 "ayu_ViewFiltersMenuText" = "View Filters";
 "ayu_ShowFilteredMessagesMenuText" = "Show Filtered";

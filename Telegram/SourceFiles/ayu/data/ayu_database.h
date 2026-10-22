@@ -9,6 +9,7 @@
 #include "ayu/data/entities.h"
 
 #include <functional>
+#include <optional>
 
 class SchemaVersion
 {
@@ -30,6 +31,13 @@ std::vector<DeletedMessage> getDeletedMessages(ID userId, ID dialogId, ID topicI
 bool hasDeletedMessages(ID userId, ID dialogId, ID topicId);
 void removeDeletedMessage(ID userId, ID dialogId, ID messageId);
 void clearDeletedMessages(ID userId, ID dialogId, ID topicId);
+
+void setCheckpoint(ID userId, ID dialogId, ID topicId, ID messageId);
+std::optional<Checkpoint> getCheckpoint(ID userId, ID dialogId, ID topicId);
+std::optional<Checkpoint> getLatestCheckpoint(ID userId, ID dialogId);
+void clearCheckpoint(ID userId, ID dialogId, ID topicId);
+void clearCheckpointsForDialog(ID userId, ID dialogId);
+void clearAllCheckpoints(ID userId);
 
 std::vector<RegexFilter> getAllRegexFilters();
 RegexFilter getById(std::vector<char> id);
