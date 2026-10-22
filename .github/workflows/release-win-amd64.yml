@@ -165,6 +165,24 @@ jobs:
             Tee-Object -FilePath "$env:GITHUB_WORKSPACE/build.log"
           exit $LASTEXITCODE
 
+      - name: Extract compile errors
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path build.log) {
+            Select-String -Path build.log -Pattern "error [A-Z]+[0-9]+:" |
+              ForEach-Object { $_.Line.Trim() } |
+              Set-Content -Path errors.txt -Encoding UTF8
+            $total = (Get-Content errors.txt -ErrorAction SilentlyContinue | Measure-Object).Count
+            "### 编译错误" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            "总计: $total" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            Get-Content errors.txt -TotalCount 60 -ErrorAction SilentlyContinue |
+              ForEach-Object { "- ``$_``" } |
+              Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+          } else {
+            "build.log 未生成（configure/build 前失败）" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+          }
+
       - name: Package portable exe
         shell: pwsh
         run: |
@@ -197,6 +215,7 @@ jobs:
             build.log
             configure.log
             prepare.log
+            errors.txt
           if-no-files-found: ignore
           retention-days: 7
 

@@ -35,3 +35,14 @@
 
 ## 參考證據
 - T6 審計（Repeat message 真相/編輯鏈/anti-edit/anti-recall）；T7 審計（請求→響應生命周期、各插樁點、`overrideId`/`resend` 基建、msg_key 重新計算約束）。
+
+## 附錄 A（2025-10-22）：一期已完成、二期落地前置
+
+- **一期狀態**：已落地（Edit & Resend，插入語義：`context_menu.cpp` 的 `AddEditAndResendAction` + 一欄 `ListWidget::insertTextAtCursor` / 兩欄 `HistoryWidget::insertTextAtCursor`），**待 CI 編譯與人工回歸**。
+- **二期（任意 RPC 重放）未開始**，原因是它同時是 mtproto 核心改動 + UI 改動：
+  1. 攔截緩存：`Instance::sendSerialized`（`mtp_instance.h:162` 聲明 / `:206` 定義）邊界緩存 `requestId → (SerializedRequest, TL 參數鏡像)`。
+  2. 回放：走正常 `send` 管線**重新生成** msg_id/seq_no/msg_key（禁字節重發）；`overrideId`（`sender.h:229-232`）僅用於同語義重試。
+  3. 編輯器 UI：需要 `lib_ui` 的 `Ui::GenericBox`/`InputField` 頭文件；本 checkout 子模塊未初始化 → **簽名不可核對**（與 §7 同一道牆）。這就是二期不能在零編譯環境盲寫的硬原因。
+  4. 回包展示：`Response.reply` 解包沿用 `sender.h:43-74` 的 `MakeDoneHandler` 同源路徑。
+- **建議順序**：先讓 CI 把需求 1~8 + 需求 7 一期編譯綠 → 二期作為獨立 commit → 打新 tag 觸發第二輪 CI → 再過回歸（`docs/build-package/github-actions.md` §7）。
+- **二期風險**：FLOOD_WAIT/風控（沿用 `handleFloodErrors`）、Debug-only 開關默認關閉、與 Repeat message 的 UI 邊界。

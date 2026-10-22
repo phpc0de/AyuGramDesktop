@@ -55,6 +55,7 @@ zip 內：
 |---|---|
 | prepare 階段失敗 | Actions 產物 `prepare-log` |
 | configure/編譯失敗 | Actions 產物 `build-logs`（`configure.log`/`build.log`） |
+| 想一次拿全部編譯錯誤 | Actions 產物 `build-logs/errors.txt`（已用 `error C####`/`LNK####` 聚合，並寫入 job summary） |
 | 登錄失敗（API 憑據不匹配） | 改 workflow 頂部 `TDESKTOP_API_ID/HASH` 為本 fork 實際憑據（當前用 tdesktop 公開測試憑據 `2040`） |
 | Release 沒有資產 | 看 build job 日誌的 `Publish release` 步驟；權限需 `contents: write`（已聲明） |
 
