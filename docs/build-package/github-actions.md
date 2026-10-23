@@ -74,6 +74,8 @@ zip 內：
 4. 緩存上限 10 GB/倉庫；`Libraries/win64` + `ThirdParty` 若超限，緩存會被跳過（不影響本次構建，只影響下次提速）。
 5. **緩存路徑必須是絕對路徑、不能含 `..`**：`actions/cache` 會拒絕 `${{ github.workspace }}/../X`（報 `Relative pathing '.' and '..' is not allowed`），而且只是 warning，容易誤判成「prepare 失敗」。workflow 用 `${{ runner.workspace }}/X`（= `D:\a\<repo>`，正是 `prepare.py` 的 `rootDir`）。
 
+6. **編譯期 OOM（`error C1060: compiler is out of heap space`）**：`windows-2022` 只有 16 GB，`/m`（無限並行）會一次開滿 cl.exe 把記憶體吃爆，`errors.txt` 會出現幾十上百條 C1060，`容易誤判成代碼錯誤`（實際 0 條真錯誤）。build step 已改為 `/m:2` + `/p:MultiProcessorCompilation=false`，並在偵測到 C1060 時自動以 `/m:1` 重試一次；summary 會按錯誤碼分組統計，一眼看出是 C1060 還是真錯誤。
+
 ## 7. 發版前回歸清單（人工，編譯器抓不到）
 
 | # | 項 | 期望 |

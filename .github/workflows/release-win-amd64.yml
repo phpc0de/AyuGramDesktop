@@ -202,9 +202,18 @@ jobs:
         env:
           Platform: x64
         run: |
-          cmake --build out --config Release --target Telegram -- /m /v:m 2>&1 |
-            Tee-Object -FilePath "$env:GITHUB_WORKSPACE/build.log"
-          exit $LASTEXITCODE
+          function Invoke-Build([string]$m) {
+            cmake --build out --config Release --target Telegram -- "/m:$m" /v:m /p:MultiProcessorCompilation=false 2>&1 |
+              Tee-Object -FilePath "$env:GITHUB_WORKSPACE/build.log" -Append
+            return $LASTEXITCODE
+          }
+          $code = Invoke-Build 2
+          if ($code -ne 0 -and (Test-Path build.log) -and
+              (Select-String -Path build.log -Pattern 'C1060' -SimpleMatch -Quiet)) {
+            Write-Host "C1060 (out of heap space) detected - retrying with /m:1"
+            $code = Invoke-Build 1
+          }
+          exit $code
 
       - name: Extract compile errors
         if: always()
@@ -217,6 +226,12 @@ jobs:
             $total = (Get-Content errors.txt -ErrorAction SilentlyContinue | Measure-Object).Count
             "### 编译错误" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
             "总计: $total" | Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
+            Get-Content errors.txt -ErrorAction SilentlyContinue |
+              ForEach-Object { if ($_ -match 'error ([A-Z]+[0-9]+):') { $Matches[1] } } |
+              Group-Object |
+              Sort-Object Count -Descending |
+              ForEach-Object { "- $($_.Name) x$($_.Count)" } |
+              Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
             Get-Content errors.txt -TotalCount 60 -ErrorAction SilentlyContinue |
               ForEach-Object { "- ``$_``" } |
               Out-File -Append -Encoding UTF8 $env:GITHUB_STEP_SUMMARY
